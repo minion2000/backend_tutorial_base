@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\CommentResource;
 use App\Models\Article;
+use App\Models\Comment;
 use Illuminate\Http\Request;
 
 class CommentController extends Controller
@@ -84,10 +85,37 @@ class CommentController extends Controller
 
     /**
      * Update the specified resource in storage.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, int $id)
     {
-        //
+        // コメント取得（削除済みは自動除外）
+        $comment = Comment::findOrFail($id);
+
+        // 所有者確認（違えば404）
+        if ($comment->user_id !== $request->user()->id) {
+            abort(404);
+        }
+
+        // バリデーション
+        $validated = $request->validate([
+            'content' => 'required|string|min:10|max:100',
+        ]);
+
+        // コメント更新
+        $comment->update([
+            'content' => trim($validated['content']),
+        ]);
+
+        // ユーザー情報をロード
+        $comment->load('user');
+
+        return response()->json([
+            'data' => new CommentResource($comment),
+        ]);
     }
 
     /**
