@@ -16,4 +16,8 @@ Route::prefix('v1')->group(function () {
     // コメント作成（認証必須）
     Route::post('/articles/{article}/comments', [CommentController::class, 'store'])
         ->middleware('auth:sanctum');
+
+    // コメント更新（認証必須）
+    Route::put('/comments/{id}', [CommentController::class, 'update'])
+        ->middleware('auth:sanctum');
 });
