@@ -48,10 +48,30 @@ class CommentController extends Controller
 
     /**
      * Store a newly created resource in storage.
+     *
+     * @param \App\Models\Article $article
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(Article $article, Request $request)
     {
-        //
+        // バリデーション
+        $validated = $request->validate([
+            'content' => 'required|string|min:10|max:100',
+        ]);
+
+        // コメント作成
+        $comment = $article->comments()->create([
+            'user_id' => $request->user()->id,
+            'content' => trim($validated['content']),
+        ]);
+
+        // ユーザー情報をロード
+        $comment->load('user');
+
+        return response()->json([
+            'data' => new CommentResource($comment),
+        ], 201);
     }
 
     /**
