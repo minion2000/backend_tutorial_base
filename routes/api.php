@@ -18,10 +18,10 @@ Route::prefix('v1')->group(function () {
         ->middleware('auth:sanctum');
 
     // コメント更新（認証必須）
-    Route::put('/comments/{id}', [CommentController::class, 'update'])
+    Route::put('/comments/{comment}', [CommentController::class, 'update'])
         ->middleware('auth:sanctum');
 
     // コメント削除（認証必須）
-    Route::delete('/comments/{id}', [CommentController::class, 'destroy'])
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])
         ->middleware('auth:sanctum');
 });
