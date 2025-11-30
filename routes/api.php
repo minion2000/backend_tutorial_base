@@ -12,4 +12,8 @@ Route::get('/user', function (Request $request) {
 Route::prefix('v1')->group(function () {
     // コメント一覧取得（認証不要）
     Route::get('/articles/{article}/comments', [CommentController::class, 'index']);
+
+    // コメント作成（認証必須）
+    Route::post('/articles/{article}/comments', [CommentController::class, 'store'])
+        ->middleware('auth:sanctum');
 });
