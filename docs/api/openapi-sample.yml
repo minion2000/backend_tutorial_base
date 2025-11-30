@@ -1,457 +1,388 @@
 openapi: 3.1.0
 info:
   version: 1.0.0
-  title: Example.com
-  termsOfService: 'https://example.com/terms/'
-  contact:
-    email: contact@example.com
-    url: 'http://example.com/contact'
-  license:
-    name: Apache 2.0
-    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
-  x-logo:
-    url: 'https://redocly.github.io/openapi-template/logo.png'
+  title: Comment API
   description: |
-    This is an **example** API to demonstrate features of the OpenAPI
-    specification.
+    記事に対するコメント機能のAPI
 
-    # Introduction
+    ## 概要
+    ユーザーが記事に対してコメントを投稿・閲覧・編集・削除できるシステムです。
 
-    This API definition is intended to to be a good starting point for
-    describing your API in [OpenAPI/Swaggerformat](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.2.md).
-    It also demonstrates features of the
-    [create-openapi-repo](https://github.com/Redocly/create-openapi-repo) tool and
-    the [Redoc](https://github.com/Redocly/Redoc) documentation engine. Beyond
-    the standard OpenAPI syntax, we use a few [vendor extensions](https://github.com/Redocly/Redoc/blob/master/docs/redoc-vendor-extensions.md).
-
-    # OpenAPI Specification
-
-    The goal of The OpenAPI Specification is to define a standard,
-    language-agnostic interface to REST APIs which
-    allows both humans and computers to discover and understand the capabilities
-    of the service without access to source
-    code, documentation, or through network traffic inspection. When properly
-    defined via OpenAPI, a consumer can understand and interact with the remote service with a minimal amount of implementation logic. Similar to what
-    interfaces have done for lower-level programming, OpenAPI removes the
-    guesswork in calling the service.
-externalDocs:
-  description: Find out how to create a GitHub repo for your OpenAPI definition.
-  url: 'https://github.com/Rebilly/generator-openapi-repo'
-tags:
-  - name: Echo
-    description: Example echo operations.
-  - name: User
-    description: Operations about users.
-  - name: Tag
-    description: This is a tag description.
+    ## 認証
+    コメントの作成・更新・削除には Bearer トークンによる認証が必要です。
 servers:
-  - url: 'http://example.com/api/v1'
-  - url: 'https://example.com/api/v1'
+  - url: http://localhost/api/v1
+    description: ローカル環境
+
+tags:
+  - name: Comments
+    description: コメント関連のAPI
+
 paths:
-  '/users/{username}':
-    parameters:
-      - name: pretty_print
-        in: query
-        description: Pretty print response
-        schema:
-          type: boolean
+  /articles/{articleId}/comments:
     get:
       tags:
-        - User
-      summary: Get user by user name
+        - Comments
+      summary: コメント一覧取得
       description: |
-        Some description of the operation. test
-        You can use `markdown` here.
-      operationId: getUserByName
+        指定された記事に紐づくコメントを新しい順で取得します。
+        削除済みのコメントは除外されます。
+        認証は不要です。
+      operationId: getComments
       parameters:
-        - name: username
+        - name: articleId
           in: path
-          description: The name that needs to be fetched
+          description: 記事ID
           required: true
           schema:
-            type: string
-        - name: with_email
+            type: integer
+            format: int64
+        - name: page
           in: query
-          description: Filter users without email
+          description: ページ番号
           schema:
-            type: boolean
-      security:
-        - main_auth:
-            - 'read:users'
-        - api_key: []
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          description: 1ページあたりの件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
       responses:
         '200':
-          description: Success
+          description: 成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
               example:
-                username: user1
-                email: user@example.com
-        '403':
-          description: Forbidden
+                data:
+                  - id: 456
+                    article_id: 45
+                    user:
+                      id: 9
+                      display_name: "TestTaro"
+                      avatar_url: null
+                    content: "テストテスト"
+                    created_at: "2025-09-20T03:20:00+09:00"
+                    updated_at: "2025-09-20T03:25:10+09:00"
+                    is_owner: false
+                pagination:
+                  page: 1
+                  per_page: 20
+                  total: 128
         '404':
-          description: User not found
+          description: 記事が見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+    post:
+      tags:
+        - Comments
+      summary: コメント作成
+      description: |
+        指定された記事に新しいコメントを作成します。
+        認証が必要です。
+      operationId: createComment
+      parameters:
+        - name: articleId
+          in: path
+          description: 記事ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  minLength: 10
+                  maxLength: 100
+                  description: コメント本文（10〜100文字）
+            example:
+              content: "テストテスト初回"
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Comment'
+              example:
+                data:
+                  id: 789
+                  article_id: 45
+                  user:
+                    id: 9
+                    display_name: "TestTaro"
+                    avatar_url: null
+                  content: "テストテスト初回"
+                  created_at: "2025-09-20T03:20:00+09:00"
+                  updated_at: "2025-09-20T03:20:00+09:00"
+                  is_owner: true
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 記事が見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /comments/{commentId}:
     put:
       tags:
-        - User
-      summary: Updated user
-      description: This can only be done by the logged in user.
-      operationId: updateUser
+        - Comments
+      summary: コメント更新
+      description: |
+        自分が投稿したコメントを更新します。
+        他人のコメントは更新できません。
+        認証が必要です。
+      operationId: updateComment
       parameters:
-        - name: username
+        - name: commentId
           in: path
-          description: The name that needs to be updated
+          description: コメントID
           required: true
           schema:
-            type: string
+            type: integer
+            format: int64
       security:
-        - main_auth:
-            - 'write:users'
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  minLength: 10
+                  maxLength: 100
+                  description: コメント本文（10〜100文字）
+            example:
+              content: "テストテスト修正"
       responses:
         '200':
-          description: OK
-        '400':
-          description: Invalid user supplied
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Comment'
+              example:
+                data:
+                  id: 789
+                  article_id: 45
+                  user:
+                    id: 9
+                    display_name: "TestTaro"
+                    avatar_url: null
+                  content: "テストテスト修正"
+                  created_at: "2025-09-23T03:20:00+09:00"
+                  updated_at: "2025-09-23T03:25:10+09:00"
+                  is_owner: true
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
-          description: User not found
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/User'
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/User'
-        description: Updated user object
-        required: true
-  /echo:
-    post:
-      tags:
-        - Echo
-      summary: Echo test
-      description: Receive the exact message you've sent
-      operationId: echo
-      security:
-        - api_key: []
-        - basic_auth: []
-      responses:
-        '200':
-          description: OK
-          headers:
-            X-Rate-Limit:
-              description: calls per hour allowed by the user
-              schema:
-                type: integer
-                format: int32
-            X-Expires-After:
-              $ref: '#/components/headers/ExpiresAfter'
+          description: コメントが見つかりません（または所有者ではありません）
           content:
             application/json:
               schema:
-                type: string
-              examples:
-                response:
-                  value: Hello world!
-            application/xml:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: バリデーションエラー
+          content:
+            application/json:
               schema:
-                type: string
-            text/csv:
-              schema:
-                type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: string
-              example: Hello world!
-          application/xml:
-            schema:
-              type: string
-              example: Hello world!
-        description: Echo payload
-        required: true
-      x-codeSamples:
-        - lang: C#
-          source: |
-            API.v1.Echo echo = new API.v1.Echo();
-            echo.message = "Hello World!");
-            EchoResponse response = echo.post();
-            if (response.statusCode == HttpStatusCode.Created)
-            {
-              // Success
-            }
-            else
-            {
-              // Something wrong -- check response for errors
-              Console.WriteLine(response.getRawResponse());
-            }
-        - lang: PHP
-          source: |
-            $form = new APIEntitiesEcho();
-            $form->setMessage("Hello World!");
-            try {
-                $pet = $client->echo()->post($form);
-            } catch (UnprocessableEntityException $e) {
-                var_dump($e->getErrors());
-            }
-  /pathItem:
-    post:
+                $ref: '#/components/schemas/ValidationError'
+
+    delete:
       tags:
-        - Tag
-      summary: Operation summary
+        - Comments
+      summary: コメント削除
       description: |
-        Operation description **markdown**.
-      operationId: operationId
+        自分が投稿したコメントを論理削除します。
+        他人のコメントは削除できません。
+        認証が必要です。
+      operationId: deleteComment
+      parameters:
+        - name: commentId
+          in: path
+          description: コメントID
+          required: true
+          schema:
+            type: integer
+            format: int64
       security:
-        - api_key: []
-        - basic_auth: []
+        - bearerAuth: []
       responses:
-        '200':
-          description: OK
-          headers:
-            X-Rate-Limit:
-              description: Calls per hour allowed by the user.
-              schema:
-                type: integer
-                format: int32
-            X-Expires-After:
-              $ref: '#/components/headers/ExpiresAfter'
+        '204':
+          description: 削除成功（レスポンスボディなし）
+        '401':
+          description: 認証エラー
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Schema'
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Schema'
-        description: requestBody description
-        required: true
-  /pathItemWithExamples:
-    post:
-      tags:
-        - Tag
-      summary: Operation summary with examples
-      description: |
-        Operation description **markdown**.
-      operationId: postPathItemWithExamples
-      security:
-        - api_key: []
-        - basic_auth: []
-      responses:
-        '200':
-          description: OK
-          headers:
-            X-Rate-Limit:
-              description: calls per hour allowed by the user
-              schema:
-                type: integer
-                format: int32
-            X-Expires-After:
-              $ref: '#/components/headers/ExpiresAfter'
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: コメントが見つかりません（または所有者ではありません）
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Schema'
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Schema'
-            examples:
-              mapName:
-                summary: My first example
-                description: My first example's description.
-                value:
-                  stringProperty: tada
-              mapNameDoesNotShowInDocsUnlessSummaryIsNotProvided:
-                value:
-                  stringProperty: checkmark
-        description: requestBody description
-        required: true
+                $ref: '#/components/schemas/Error'
+
 components:
   securitySchemes:
-    main_auth:
-      type: oauth2
-      flows:
-        implicit:
-          authorizationUrl: 'http://example.com/api/oauth/dialog'
-          scopes:
-            'read:users': read users info
-            'write:users': modify or remove users
-    api_key:
-      type: apiKey
-      in: header
-      name: api_key
-    basic_auth:
+    bearerAuth:
       type: http
-      scheme: basic
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Laravel Sanctum のトークンを使用します。
+        ヘッダー形式: `Authorization: Bearer {token}`
+
   schemas:
-    Email:
-      description: User email address
-      type: string
-      format: test
-      example: john.smith@example.com
-    User:
+    Comment:
       type: object
       properties:
-        username:
-          description: User supplied username
-          type: string
-          minLength: 4
-          example: John78
-        firstName:
-          description: User first name
-          type: string
-          minLength: 1
-          example: John
-        lastName:
-          description: User last name
-          type: string
-          minLength: 1
-          example: Smith
-        email:
-          $ref: '#/components/schemas/Email'
-    Schema:
-      type: object
-      title: Scalars
-      properties:
-        stringProperty:
-          description: Property name's description (type is string)1111
-          type: string
-          example: example
-        readOnlyStringProperty:
-          description: Notice this only appears in the response.
-          type: string
-          readOnly: true
-          example: example
-        writeOnlyStringProperty:
-          description: Notice this only appears in the request.
-          type: string
-          writeOnly: true
-          example: example
-        minLengthString:
-          description: Property name's description (type is string)
-          type: string
-          minLength: 4
-          example: example
-        maxLengthString:
-          description: Property name's description (type is string)
-          type: string
-          maxLength: 140
-          example: example
-        minAndMaxLengthString:
-          description: Property name's description (type is string)
-          type: string
-          minLength: 4
-          maxLength: 140
-          example: example
-        stringEnumValues:
-          description: Property name's description (type is string)
-          type: string
-          enum:
-            - sample
-            - example
-            - specimen
-            - case
-            - instance
-            - illustration
-        stringDateTime:
-          description: 'Property name''s description (type is string, format is date-time)'
-          type: string
-          format: date-time
-        stringDate:
-          description: 'Property name''s description (type is string, format is date-time)'
-          type: string
-          format: date
-        stringEmail:
-          description: 'Property name''s description (type is string, format is email)'
-          type: string
-          format: email
-        stringIpAddressV4:
-          description: 'Property name''s description (type is string, format is ipv4 address)'
-          type: string
-          format: ipv4
-        stringIpAddressV6:
-          description: 'Property name''s description (type is string, format is ipv6 address)'
-          type: string
-          format: ipv6
-        stringPassword:
-          description: 'Property name''s description (type is string, format is password)'
-          type: string
-          format: password
-        stringHostname:
-          description: 'Property name''s description (type is string, format is hostname)'
-          type: string
-          format: hostname
-        stringUri:
-          description: 'Property name''s description (type is string, format is uri)'
-          type: string
-          format: uri
-        stringUuid:
-          description: 'Property name''s description (type is string, format is uuid)'
-          type: string
-          format: uuid
-        numberProperty:
-          description: Property name's description (type is number)
-          type: number
-          example: 8
-        numberFloat:
-          description: 'Property name''s description (type is number, format is float)'
-          type: number
-          format: float
-        numberDouble:
-          description: 'Property name''s description (type is number, format is double)'
-          type: number
-          format: double
-        numberGreaterThanOrEquals:
-          description: Property name's description (type is number)
-          type: number
-          minimum: 5
-        numberGreaterThan:
-          description: Property name's description (type is number)
-          type: number
-        numberLessThan:
-          description: Property name's description (type is number)
-          type: number
-        numberLessThanOrEquals:
-          description: Property name's description (type is number)
-          type: number
-          maximum: 8
-        numberRange:
-          description: Property name's description (type is number)
-          type: number
-          minimum: 5
-          maximum: 8
-        numberRangeExclusiveMaximum:
-          description: Property name's description (type is number)
-          type: number
-        numberRangeExclusiveMinimumAndMaximum:
-          description: Property name's description (type is number)
-          type: number
-        numberMultipleOf:
-          description: Property name's description (type is number)
-          type: number
-          multipleOf: 2
-        integerType:
-          description: Property name's description (type is integer)
-          type: integer
-        integer32bit:
-          description: 'Property name''s description (type is integer, format is int32)'
-          type: integer
-          format: int32
-        integer64bit:
-          description: 'Property name''s description (type is integer, format is int64)'
+        id:
           type: integer
           format: int64
-        booleanProperty:
-          description: Property name's description (type is boolean)
+          description: コメントID
+          example: 456
+        article_id:
+          type: integer
+          format: int64
+          description: 記事ID
+          example: 45
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+              description: ユーザーID
+              example: 9
+            display_name:
+              type: string
+              description: 表示名
+              example: "TestTaro"
+            avatar_url:
+              type: string
+              nullable: true
+              description: アバターURL
+              example: null
+        content:
+          type: string
+          minLength: 10
+          maxLength: 100
+          description: コメント本文
+          example: "テストテスト"
+        created_at:
+          type: string
+          format: date-time
+          description: 作成日時
+          example: "2025-09-20T03:20:00+09:00"
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新日時
+          example: "2025-09-20T03:25:10+09:00"
+        is_owner:
           type: boolean
-  headers:
-    ExpiresAfter:
-      description: date in UTC when token expires
-      schema:
-        type: string
-        format: date-time
+          description: リクエストユーザーがコメントの所有者かどうか
+          example: false
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: 現在のページ番号
+          example: 1
+        per_page:
+          type: integer
+          description: 1ページあたりの件数
+          example: 20
+        total:
+          type: integer
+          description: 総件数
+          example: 128
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          description: エラーメッセージ
+          example: "Unauthenticated."
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+          description: エラーメッセージ
+          example: "The content field is required."
+        errors:
+          type: object
+          description: フィールドごとのエラー詳細
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            content:
+              - "The content field is required."
+              - "The content must be at least 10 characters."
