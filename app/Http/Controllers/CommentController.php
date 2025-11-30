@@ -87,14 +87,11 @@ class CommentController extends Controller
      * Update the specified resource in storage.
      *
      * @param \Illuminate\Http\Request $request
-     * @param int $id
+     * @param \App\Models\Comment $comment
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, int $id)
+    public function update(Request $request, Comment $comment)
     {
-        // コメント取得（削除済みは自動除外）
-        $comment = Comment::findOrFail($id);
-
         // 所有者確認（違えば404）
         if ($comment->user_id !== $request->user()->id) {
             abort(404);
@@ -120,9 +117,21 @@ class CommentController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     *
+     * @param \App\Models\Comment $comment
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy(string $id)
+    public function destroy(Comment $comment)
     {
-        //
+        // 所有者確認（違えば404）
+        if ($comment->user_id !== request()->user()->id) {
+            abort(404);
+        }
+
+        // 論理削除（deleted_at が自動設定される）
+        $comment->delete();
+
+        // 204 No Content を返却
+        return response()->json(null, 204);
     }
 }
