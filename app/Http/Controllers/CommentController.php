@@ -24,9 +24,6 @@ class CommentController extends Controller
         $page = $validated['page'] ?? 1;
         $perPage = $validated['per_page'] ?? 20;
 
-        // コメント総数を取得（削除済み除外）
-        $total = $article->comments()->count();
-
         // コメント一覧を取得（N+1回避、削除済み除外、並び順）
         $comments = $article->comments()
             ->with('user')
@@ -39,7 +36,7 @@ class CommentController extends Controller
             'pagination' => [
                 'page' => $comments->currentPage(),
                 'per_page' => $comments->perPage(),
-                'total' => $total,
+                'total' => $comments->total(),
             ],
         ]);
     }
