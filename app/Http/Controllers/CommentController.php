@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CommentIndexRequest;
+use App\Http\Requests\CommentStoreRequest;
+use App\Http\Requests\CommentUpdateRequest;
 use App\Http\Resources\CommentResource;
 use App\Models\Article;
 use App\Models\Comment;
-use Illuminate\Http\Request;
 
 class CommentController extends Controller
 {
@@ -13,17 +15,12 @@ class CommentController extends Controller
      * Display a listing of the resource.
      *
      * @param \App\Models\Article $article
-     * @param \Illuminate\Http\Request $request
+     * @param \App\Http\Requests\CommentIndexRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function index(Article $article, Request $request)
+    public function index(Article $article, CommentIndexRequest $request)
     {
-        // バリデーション
-        $validated = $request->validate([
-            'page' => 'integer|min:1',
-            'per_page' => 'integer|min:1|max:50',
-        ]);
-
+        $validated = $request->validated();
         $page = $validated['page'] ?? 1;
         $perPage = $validated['per_page'] ?? 20;
 
@@ -51,15 +48,12 @@ class CommentController extends Controller
      * Store a newly created resource in storage.
      *
      * @param \App\Models\Article $article
-     * @param \Illuminate\Http\Request $request
+     * @param \App\Http\Requests\CommentStoreRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Article $article, Request $request)
+    public function store(Article $article, CommentStoreRequest $request)
     {
-        // バリデーション
-        $validated = $request->validate([
-            'content' => 'required|string|min:10|max:100',
-        ]);
+        $validated = $request->validated();
 
         // コメント作成
         $comment = $article->comments()->create([
@@ -86,21 +80,18 @@ class CommentController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param \Illuminate\Http\Request $request
+     * @param \App\Http\Requests\CommentUpdateRequest $request
      * @param \App\Models\Comment $comment
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, Comment $comment)
+    public function update(CommentUpdateRequest $request, Comment $comment)
     {
         // 所有者確認（違えば404）
         if ($comment->user_id !== $request->user()->id) {
             abort(404);
         }
 
-        // バリデーション
-        $validated = $request->validate([
-            'content' => 'required|string|min:10|max:100',
-        ]);
+        $validated = $request->validated();
 
         // コメント更新
         $comment->update([
